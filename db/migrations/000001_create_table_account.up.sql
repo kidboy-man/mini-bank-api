@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS "accounts" (
   "balance" bigint NOT NULL,
   "currency" varchar NOT NULL,
   "created_at" timestamptz NOT NULL DEFAULT (now()),
-  "updated_at" timestamptz NOT NULL DEFAULT (now())
+  "updated_at" timestamptz NOT NULL DEFAULT (now()),
+  "deleted_at" timestamptz
 );

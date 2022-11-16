@@ -7,4 +7,7 @@ rollback-migrations:
 sqlc:
 	sqlc generate
 
+run-test:
+	go test -v -cover ./...
+
 .PHONY: run-migrations rollback-migrations sqlc

@@ -15,7 +15,7 @@ INSERT INTO accounts (
 ) VALUES (
   $1, $2, $3
 )
-RETURNING id, owner, balance, currency, created_at, updated_at
+RETURNING id, owner, balance, currency, created_at, updated_at, deleted_at
 `
 
 type CreateAccountParams struct {
@@ -34,13 +34,14 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 		&i.Currency,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const deleteAccount = `-- name: DeleteAccount :exec
-DELETE FROM accounts
-WHERE id = $1
+UPDATE accounts SET deleted_at = NOW()
+WHERE id = $1 AND deleted_at ISNULL
 `
 
 func (q *Queries) DeleteAccount(ctx context.Context, id int64) error {
@@ -49,8 +50,8 @@ func (q *Queries) DeleteAccount(ctx context.Context, id int64) error {
 }
 
 const getAccount = `-- name: GetAccount :one
-SELECT id, owner, balance, currency, created_at, updated_at FROM accounts
-WHERE id = $1 LIMIT 1
+SELECT id, owner, balance, currency, created_at, updated_at, deleted_at FROM accounts
+WHERE id = $1 AND deleted_at ISNULL LIMIT 1
 `
 
 func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
@@ -63,17 +64,26 @@ func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
 		&i.Currency,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getAllAccounts = `-- name: GetAllAccounts :many
-SELECT id, owner, balance, currency, created_at, updated_at FROM accounts
+SELECT id, owner, balance, currency, created_at, updated_at, deleted_at FROM accounts
+WHERE deleted_at ISNULL
 ORDER BY id
+LIMIT $1
+OFFSET $2
 `
 
-func (q *Queries) GetAllAccounts(ctx context.Context) ([]Account, error) {
-	rows, err := q.db.QueryContext(ctx, getAllAccounts)
+type GetAllAccountsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) GetAllAccounts(ctx context.Context, arg GetAllAccountsParams) ([]Account, error) {
+	rows, err := q.db.QueryContext(ctx, getAllAccounts, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +98,7 @@ func (q *Queries) GetAllAccounts(ctx context.Context) ([]Account, error) {
 			&i.Currency,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -100,4 +111,23 @@ func (q *Queries) GetAllAccounts(ctx context.Context) ([]Account, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateAccount = `-- name: UpdateAccount :exec
+UPDATE accounts SET 
+owner = $2,
+balance = $3,
+updated_at = NOW()
+WHERE id = $1 AND deleted_at ISNULL
+`
+
+type UpdateAccountParams struct {
+	ID      int64  `json:"id"`
+	Owner   string `json:"owner"`
+	Balance int64  `json:"balance"`
+}
+
+func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) error {
+	_, err := q.db.ExecContext(ctx, updateAccount, arg.ID, arg.Owner, arg.Balance)
+	return err
 }

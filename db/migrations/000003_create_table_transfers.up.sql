@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS "transfers" (
   "from_account_id" bigint NOT NULL REFERENCES "accounts" ("id"),
   "to_account_id" bigint NOT NULL REFERENCES "accounts" ("id"),
   "amount" bigint NOT NULL,
-  "created_at" timestamptz NOT NULL DEFAULT (now())
+  "created_at" timestamptz NOT NULL DEFAULT (now()),
+  "deleted_at" timestamptz
 );
 
 CREATE INDEX ON "transfers" ("from_account_id");
